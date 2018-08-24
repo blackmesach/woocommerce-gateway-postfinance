@@ -94,7 +94,7 @@ class WC_Gateway_Postfinance extends WC_Payment_Gateway {
      * @return string
      */
     public function get_icon() {
-        $icon_html = '<img src="' . WC_HTTPS::force_https_url( plugins_url( '/assets/images/yellownet_5_choice' . '.gif', WC_POSTFINANCE_MAIN_FILE ) ) . '" alt="PostFinance Card" width="200" />';
+        $icon_html = '<img src="' . WC_HTTPS::force_https_url( plugins_url( '/assets/images/yellownet_5_choice' . '.gif', WC_POSTFINANCE_MAIN_FILE ) ) . '" alt="PostFinance Card" />';
 
         return apply_filters( 'woocommerce_gateway_icon', $icon_html, $this->id );
     }
