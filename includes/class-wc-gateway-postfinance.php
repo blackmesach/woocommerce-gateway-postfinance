@@ -28,6 +28,12 @@ class WC_Gateway_Postfinance extends WC_Payment_Gateway {
     public $sha_out_signatur;
 
     /**
+     * Redirect for PostFinance Checkout
+     * @var bool
+     */
+    public $checkout_redirection;
+
+    /**
      * PostFinance payment page image
      * @var bool
      */
@@ -66,6 +72,7 @@ class WC_Gateway_Postfinance extends WC_Payment_Gateway {
         $this->pspid            = $this->get_option( 'pspid' );
         $this->sha_in_signatur  = $this->get_option( 'sha_in_signatur' );
         $this->sha_out_signatur = $this->get_option( 'sha_out_signatur' );
+        $this->checkout_redirection = 'yes' === $this->get_option( 'checkout_redirection', 'yes'  );
         $this->payment_image    = $this->get_option( 'image_url' );
         $this->testmode         = 'yes' === $this->get_option( 'testmode', 'no' );
         $this->logging          = 'yes' === $this->get_option( 'debug', 'no' );
@@ -114,8 +121,10 @@ class WC_Gateway_Postfinance extends WC_Payment_Gateway {
             return;
         }
 
-        wp_enqueue_style( 'wc-postfinance-payment-request-css', plugins_url( 'assets/css/payment-request.css', WC_POSTFINANCE_MAIN_FILE ), array(), WC_POSTFINANCE_VERSION, false );
-        wp_enqueue_script( 'wc-postfinance-payment-request', plugins_url( 'assets/js/payment-request.js', WC_POSTFINANCE_MAIN_FILE ), array(), WC_POSTFINANCE_VERSION, false );
+        if ( $this->checkout_redirection ) {
+            wp_enqueue_style( 'wc-postfinance-payment-request-css', plugins_url( 'assets/css/payment-request.css', WC_POSTFINANCE_MAIN_FILE ), array(), WC_POSTFINANCE_VERSION, false );
+            wp_enqueue_script( 'wc-postfinance-payment-request', plugins_url( 'assets/js/payment-request.js', WC_POSTFINANCE_MAIN_FILE ), array(), WC_POSTFINANCE_VERSION, false );
+        }
 
         /* wp_localize_script( */
         /*     'wc-postfinance-payment-request', */
