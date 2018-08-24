@@ -117,7 +117,7 @@ class WC_Gateway_Postfinance extends WC_Payment_Gateway {
             return;
         }
 
-        if ( $this->testmode ) {
+        if ( $this->testmode && $this->logging ) {
             return;
         }
 
