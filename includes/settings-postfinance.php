@@ -44,13 +44,15 @@ return apply_filters( 'wc_postfinance_settings',
             'default'     => 'yes',
             'desc_tip'    => true,
         ),
-        'testmode' => array(
-            'title'       => __( 'Test mode', 'woocommerce-gateway-postfinance' ),
-            'label'       => __( 'Enable Test Mode', 'woocommerce-gateway-postfinance' ),
-            'type'        => 'checkbox',
-            'description' => __( 'Place the payment gateway in test mode.', 'woocommerce-gateway-postfinance' ),
-            'default'     => 'yes',
-            'desc_tip'    => true,
+        'environment' => array(
+            'title'       => __( 'Change environment', 'woocommerce-gateway-postfinance' ),
+            'type'        => 'select',
+            'description' => __( 'Switch to your test account or to your production (live) account. Remember to change the environment to "Production (live)" once you start with real orders. In the "Test" environment your transactions will not be sent to the acquirers/banks, meaning you won\'t be paid.<br /> In test mode, you can use the card number 4111 1111 1111 1111 or (3-D Secure) 4000 0000 0000 0002 with any CVC and a valid expiration date.', 'woocommerce-gateway-postfinance' ),
+            'default'     => 'production',
+            'options'     => array(
+                'production'     => __( 'Production (live)', 'woocommerce-gateway-postfinance' ),
+                'test'  => __( 'Test', 'woocommerce-gateway-postfinance' ),
+            ),
         ),
         'debug' => array(
             'title'       => __( 'Debug log', 'woocommerce-gateway-postfinance' ),
