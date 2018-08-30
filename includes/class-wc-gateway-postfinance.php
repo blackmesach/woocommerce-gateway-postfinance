@@ -59,7 +59,7 @@ class WC_Gateway_Postfinance extends WC_Payment_Gateway {
         $this->has_fields         = false;
         $this->order_button_text  = __( 'Weiter via PostFinance', 'woocommerce-gateway-postfinance' );
         $this->method_title       = __( 'PostFinance', 'woocommerce-gateway-postfinance' );
-        $this->method_description = __( 'PostFinance works by adding credit card fields on the checkout and then sending the details to PostFinance for verification.', 'woocommerce-gateway-postfinance' );
+        $this->method_description = __( 'Have your customers pay with PostFinance Card and PostFinance E-finance payment methods.', 'woocommerce-gateway-postfinance' );
 
         // Load the settings.
         $this->init_form_fields();
