@@ -15,6 +15,11 @@ return apply_filters( 'wc_postfinance_settings',
             'description' => '',
             'default'     => 'no'
         ),
+        'general' => array(
+            'title'           => __( 'General settings', 'woocommerce-gateway-postfinance' ),
+            'type'            => 'title',
+            'description'     => '',
+        ),
         'pspid' => array(
             'title'       => __( 'Postfinance PSPID', 'woocommerce-gateway-postfinance' ),
             'type'        => 'text',
@@ -46,12 +51,22 @@ return apply_filters( 'wc_postfinance_settings',
                 'test'  => __( 'Test', 'woocommerce-gateway-postfinance' ),
             ),
         ),
+        'advanced' => array(
+            'title'           => __( 'Advanced options', 'woocommerce-gateway-postfinance' ),
+            'type'            => 'title',
+            'description'     => '',
+        ),
         'debug' => array(
             'title'       => __( 'Debug log', 'woocommerce-gateway-postfinance' ),
             'label'       => __( 'Log debug messages', 'woocommerce-gateway-postfinance' ),
             'type'        => 'checkbox',
             'description' => sprintf( __( 'Log events, such as SHA Calculation and SHA Digest, inside %s Note: this may log personal information. We recommend using this for debugging purposes only and deleting the logs when finished.', 'woocommerce-gateway-postfinance' ), '<code>' . WC_Log_Handler_File::get_log_file_path( 'woocommerce-gateway-postfinance' ) . '</code>' ),
             'default'     => 'no',
+        ),
+        'checkout' => array(
+            'title'           => __( 'Checkout Page', 'woocommerce-gateway-postfinance' ),
+            'type'            => 'title',
+            'description'     => '',
         ),
         'title' => array(
             'title'       => __( 'Title', 'woocommerce-gateway-postfinance' ),
