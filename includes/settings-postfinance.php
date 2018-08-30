@@ -75,13 +75,5 @@ return apply_filters( 'wc_postfinance_settings',
             'default'     => __( 'Sicher Bezahlen via PostFinance.', 'woocommerce-gateway-postfinance'),
             'desc_tip'    => true,
         ),
-        'image_url' => array(
-            'title'       => __( 'Image url', 'woocommerce-gateway-postfinance' ),
-            'type'        => 'text',
-            'description' => __( 'Optionally enter the URL to a 150x50px image displayed as your logo in the upper left corner of the PostFinance payment pages.', 'woocommerce-gateway-postfinance' ),
-            'default'     => '',
-            'desc_tip'    => true,
-            'placeholder' => __( 'https://yourdomain.ch/wp-content/uploads/2017/07/logo_150x50.png', 'woocommerce-gateway-postfinance' ),
-        ),
     )
 );
