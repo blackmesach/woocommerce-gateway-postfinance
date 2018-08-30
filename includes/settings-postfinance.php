@@ -56,6 +56,18 @@ return apply_filters( 'wc_postfinance_settings',
             'type'            => 'title',
             'description'     => '',
         ),
+        'sha' => array(
+            'title'       => __( 'SHA algorithm', 'woocommerce-gateway-postfinance' ),
+            'type'        => 'select',
+            'description' => __( 'PostFinance requires the secure data verification method SHA. We suggest you leave the default value SHA-512. Change this configuration if your system requires the SHA-1 or SHA-256 algorithm.', 'woocommerce-gateway-postfinance' ),
+            'default'     => 'sha512',
+            'desc_tip'    => true,
+            'options'     => array(
+                'sha512'     => __( 'SHA-512 (default)', 'woocommerce-gateway-postfinance' ),
+                'sha256'  => __( 'SHA-256', 'woocommerce-gateway-postfinance' ),
+                'sha1'  => __( 'SHA-1', 'woocommerce-gateway-postfinance' ),
+            ),
+        ),
         'debug' => array(
             'title'       => __( 'Debug log', 'woocommerce-gateway-postfinance' ),
             'label'       => __( 'Log debug messages', 'woocommerce-gateway-postfinance' ),
