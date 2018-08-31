@@ -217,17 +217,17 @@ class WC_Gateway_Postfinance extends WC_Payment_Gateway {
             $sha_string .= esc_attr ( strtoupper( $key ) ) . '=' . esc_attr ( $value ) . $this->sha_in_signature;
         }
 
-        $sha_result = hash( 'sha1', $sha_string );
+        $sha_digest = $this->return_digest( $this->sha_algo, $sha_string );
 
-        $this->log( 'Generating SHA Digest for order' . $order->get_order_number() . ': ' . wc_clean( $sha_result ) );
+        $this->log( 'Generating ' . wc_clean( $this->sha_algo ). ' digest for order' . $order->get_order_number() . ': ' . wc_clean( $sha_digest ) );
 
         $form_html = '<div class="postfinance-overlay"><div class="postfinance-overlay-content"><p>' . __( 'Danke für Ihre Bestellung. Sie werden nun über eine sichere Verbindung zu PostFinance weitergeleitet. ', 'woocommerce-gateway-postfinance' ) . '</p></div></div>';
         $form_html .= '<div class="checkout"><div class="payment_methods methods"><div class="payment_box">';
         $form_html .= '<strong>' . __( 'Bitte klicken Sie den nun bezahlen button um zur PostFinance Webseite zu gelangen.', 'woocommerce-gateway-postfinance' ) . '</strong>';
         $form_html .= '<form method="post" action="'. $this->get_request_url( $this->environment ) . '" id="postfinance-payment-form" name="postfinance-payment-form" target="_self">';
         $form_html .= implode( '', $form_args );
-        $form_html .= '<input type="hidden" name="SHASIGN" value="' . $sha_result .'"/>';
-        $form_html .= '<input type="submit" class="button button-default comment-submit alt" id="postfinance-payment-button" value="' . __( 'Jetzt bezahlen', 'woocommerce-gateway-postfinance') . '" />';
+        $form_html .= '<input type="hidden" name="SHASIGN" value="' . $sha_digest .'"/>';
+        $form_html .= '<input type="submit" class="button button-default comment-submit" alt="" id="postfinance-payment-button" value="' . __( 'Jetzt bezahlen', 'woocommerce-gateway-postfinance') . '" />';
         $form_html .= '<a class="button button-default button-cancel cancel" href="' . esc_url( $order->get_cancel_order_url() ) . '">' . __( ' Bestellung abbrechen &amp; Warenkorb wiederherstellen', 'woocommerce-gateway-postfinance' ) . '</a>';
         $form_html .= '</form></div></div></div>';
 
@@ -289,6 +289,24 @@ class WC_Gateway_Postfinance extends WC_Payment_Gateway {
         $total = round( $total, 2 ) * 100; // In cents.
 
         return $total;
+    }
+
+    /**
+     * Hash composed string with the SHA algorithm.
+     * @param  string $sha SHA algorithm: SHA-1, SHA-256 or SHA-512
+     * @param  string $string The string that will be hashed.
+     * @return string
+     */
+    public function return_digest( $sha = 'sha512', $string ) {
+        if ( $sha === 'sha512' ) {
+            return hash( 'sha512', $string );
+        } else if ( $sha === 'sha256' ) {
+            return hash( 'sha256', $string );
+        } else if ( $sha === 'sha1' ) {
+            return hash( 'sha1', $string );
+        } else {
+            return;
+        }
     }
 
     /**
@@ -436,14 +454,14 @@ class WC_Gateway_Postfinance extends WC_Payment_Gateway {
                 $this->log( 'PostFinance payment authorized' );
                 $this->payment_on_hold( $order, wc_clean( $response['PAYID'] ), __( 'PostFinance payment pending. Change payment status to processing or complete.', 'woocommerce-gateway-postfinance' ) );
             } elseif ( in_array( $response['STATUS'], $status_stored ) ) {
-                $this->log( 'PostFinance payment stored. The status is "uncertain. Login to find out the actual result."', 'warning' );
+                $this->log( 'PostFinance payment stored. The status is uncertain. Login to find out the actual result.', 'warning' );
                 $this->payment_on_hold( $order, wc_clean( $response['PAYID'] ), __( 'Stored waiting external result. Login via the PostFinance website to find out the actual result.', 'woocommerce-gateway-postfinance' ) );
             } elseif ( in_array( $response['STATUS'], $status_incomplete ) ) {
-                $this->log( 'PostFinance transaction is declined. It could be only a temporary technical problem. Login to find out the actual result."', 'warning' );
+                $this->log( 'PostFinance transaction is declined. It could be only a temporary technical problem. Login to find out the actual result.', 'warning' );
                 $this->payment_on_failed( $order, wc_clean( $response['PAYID'] ), __( 'Refused or incomplete. The NCERROR and ACCEPTANCE fields give an explanation of the error.', 'woocommerce-gateway-postfinance' ) );
             // Hier müsste noch ein Canceled by Customer kommen. Dafär müchte die 1 aus status_incomplete raus. Dafür eine Abfrage hier rein. Damit klar ist das der Kunde abgebrochen hat.
             } else {
-                $this->log( 'Payment failed! PostFinance response["status"] do not match."', 'warning' );
+                $this->log( 'Payment failed! PostFinance response["status"] do not match.', 'warning' );
                 $this->payment_on_failed( $order, wc_clean( $response['PAYID'] ), __( 'Validation error. Postfinance status response do not match. Payment failed!', 'woocommerce-gateway-postfinance' ) );
             }
             wp_redirect($order->get_checkout_order_received_url());
