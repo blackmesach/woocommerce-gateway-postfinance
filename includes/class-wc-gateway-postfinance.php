@@ -10,46 +10,46 @@ if ( ! defined( 'ABSPATH' ) ) {
 class WC_Gateway_Postfinance extends WC_Payment_Gateway {
 
     /**
-     * PostFinance Merchant ID
-     * @var string
-     */
-    public $pspid;
-
-    /**
-     * PostFinance SHA-IN passphrase
-     * @var string
-     */
-    public $sha_in_signatur;
-
-    /**
-     * PostFinance SHA-OUT passphrase
-     * @var string
-     */
-    public $sha_out_signatur;
-
-    /**
      * Redirect for PostFinance Checkout
      * @var bool
      */
     public $checkout_redirection;
 
     /**
-     * PostFinance payment page image
+     * switch from test account to your production (live) account
      * @var bool
      */
-    public $payment_image;
-
-    /**
-     * Is test mode active?
-     * @var bool
-     */
-    public $testmode;
+    public $environment;
 
     /**
      * Logging enabled?
      * @var bool
      */
     public $logging;
+
+    /**
+     * PostFinance Merchant ID
+     * @var string
+     */
+    public $pspid;
+
+    /**
+     * PostFinance SHA algorithm
+     * @var string
+     */
+    public $sha_algo;
+
+    /**
+     * PostFinance SHA-IN passphrase
+     * @var string
+     */
+    public $sha_in_signature;
+
+    /**
+     * PostFinance SHA-OUT passphrase
+     * @var string
+     */
+    public $sha_out_signature;
 
     /**
      * Constructor for the gateway.
@@ -66,29 +66,18 @@ class WC_Gateway_Postfinance extends WC_Payment_Gateway {
         $this->init_settings();
 
         // Define user set variables.
-        $this->title            = $this->get_option( 'title' );
-        $this->description      = $this->get_option( 'description' );
-        $this->enabled          = $this->get_option( 'enabled' );
-        $this->pspid            = $this->get_option( 'pspid' );
-        $this->sha_in_signatur  = $this->get_option( 'sha_in_signatur' );
-        $this->sha_out_signatur = $this->get_option( 'sha_out_signatur' );
-        $this->checkout_redirection = 'yes' === $this->get_option( 'checkout_redirection', 'yes'  );
-        $this->payment_image    = $this->get_option( 'image_url' );
-        $this->testmode         = 'yes' === $this->get_option( 'testmode', 'no' );
-        $this->logging          = 'yes' === $this->get_option( 'debug', 'no' );
+        $this->checkout_redirection = 'yes' === $this->get_option( 'redirection', 'yes' );
+        $this->description          = $this->get_option( 'description' );
+        $this->enabled              = $this->get_option( 'enabled' );
+        $this->sha_algo             = $this->get_option( 'sha' );
+        $this->logging              = 'yes' === $this->get_option( 'debug', 'no' );
+        $this->pspid                = $this->get_option( 'pspid' );
+        $this->sha_in_signature      = $this->get_option( 'sha_in_signature' );
+        $this->sha_out_signature     = $this->get_option( 'sha_out_signature' );
+        $this->environment          = 'test' === $this->get_option( 'environment', 'production' );
+        $this->title                = $this->get_option( 'title' );
 
-        if ( $this->testmode ) {
-            $this->description .= ' <br/>' . 
-                sprintf( 
-                    __( 
-                        'TEST MODE ENABLED. In test mode, you can use the card number 4111 1111 1111 1111 or (3-D Secure) 4000 0000 0000 0002 with any CVC and a valid expiration date or check the documentation "<a href="%s">Testing PostFinance</a>".',
-                        'woocommerce-gateway-postfinance'
-                    ), 
-                   'https://www.postfinance.ch/e-payment-info'
-                );
-
-            $this->description  = trim( $this->description );
-        }
+        $this->description  = trim( $this->description );
 
         add_action( 'wp_enqueue_scripts', array( $this, 'scripts' ) );
         add_action( 'woocommerce_update_options_payment_gateways_' . $this->id, array( $this, 'process_admin_options' ) );
@@ -117,7 +106,7 @@ class WC_Gateway_Postfinance extends WC_Payment_Gateway {
             return;
         }
 
-        if ( $this->testmode && $this->logging ) {
+        if ( $this->environment && $this->logging ) {
             return;
         }
 
@@ -146,7 +135,7 @@ class WC_Gateway_Postfinance extends WC_Payment_Gateway {
                 return false;
             }
 
-            if ( ! $this->pspid || ! $this->sha_in_signatur || ! $this->sha_out_signatur ) {
+            if ( ! $this->pspid || ! $this->sha_in_signature || ! $this->sha_out_signature ) {
                 return false;
             }
             return true;
@@ -225,7 +214,7 @@ class WC_Gateway_Postfinance extends WC_Payment_Gateway {
         $form_args = array();
         foreach ( $args as $key => $value ) {
             $form_args[] = '<input type="hidden" name="' . esc_attr( strtoupper( $key ) ) . '" value="'. esc_attr ( $value ) .'"/>';
-            $sha_string .= esc_attr ( strtoupper( $key ) ) . '=' . esc_attr ( $value ) . $this->sha_in_signatur;
+            $sha_string .= esc_attr ( strtoupper( $key ) ) . '=' . esc_attr ( $value ) . $this->sha_in_signature;
         }
 
         $sha_result = hash( 'sha1', $sha_string );
@@ -235,7 +224,7 @@ class WC_Gateway_Postfinance extends WC_Payment_Gateway {
         $form_html = '<div class="postfinance-overlay"><div class="postfinance-overlay-content"><p>' . __( 'Danke für Ihre Bestellung. Sie werden nun über eine sichere Verbindung zu PostFinance weitergeleitet. ', 'woocommerce-gateway-postfinance' ) . '</p></div></div>';
         $form_html .= '<div class="checkout"><div class="payment_methods methods"><div class="payment_box">';
         $form_html .= '<strong>' . __( 'Bitte klicken Sie den nun bezahlen button um zur PostFinance Webseite zu gelangen.', 'woocommerce-gateway-postfinance' ) . '</strong>';
-        $form_html .= '<form method="post" action="'. $this->get_request_url( $this->testmode ) . '" id="postfinance-payment-form" name="postfinance-payment-form" target="_self">';
+        $form_html .= '<form method="post" action="'. $this->get_request_url( $this->environment ) . '" id="postfinance-payment-form" name="postfinance-payment-form" target="_self">';
         $form_html .= implode( '', $form_args );
         $form_html .= '<input type="hidden" name="SHASIGN" value="' . $sha_result .'"/>';
         $form_html .= '<input type="submit" class="button button-default comment-submit alt" id="postfinance-payment-button" value="' . __( 'Jetzt bezahlen', 'woocommerce-gateway-postfinance') . '" />';
@@ -267,7 +256,6 @@ class WC_Gateway_Postfinance extends WC_Payment_Gateway {
             'exceptionurl'  => WC()->api_request_url( 'WC_Gateway_Postfinance' ),
             'homeurl'       => get_site_url(),
             'language'      => 'de_DE',
-            'logo'          => $this->payment_image,
             'operation'     => 'SAL',
             'orderid'       => $order->get_id(),
             'pspid'         => $this->pspid,
@@ -306,22 +294,22 @@ class WC_Gateway_Postfinance extends WC_Payment_Gateway {
     /**
      * Validate a PostFinance transaction to ensure its authentic.
      * @param  array $response 
-     * @param  string $raw_sha_signatur
+     * @param  string $raw_sha_signature
      * @return bool
      */
-    protected function validate_transaction( $response, $raw_sha_signatur ) {
-        if ( ! is_array( $response ) || empty( $raw_sha_signatur ) ) {
+    protected function validate_transaction( $response, $raw_sha_signature ) {
+        if ( ! is_array( $response ) || empty( $raw_sha_signature ) ) {
             return false;
         }
 
         foreach ( $response as $key => $value ) {
-            $string .= strtoupper( $key ) . '=' . $value . $this->sha_out_signatur;
+            $string .= strtoupper( $key ) . '=' . $value . $this->sha_out_signature;
         }
 
         $transaction_result = hash( 'sha1', $string );
 
-        if ( $transaction_result !== strtolower( $raw_sha_signatur ) ) {
-            $this->log( 'Resulting Digest (' . $transaction_result . ') and SHASIGN (' . wc_clean( stripslashes( $raw_sha_signatur ) ) . ') do not match. Cheatin, uh?', 'warning' );
+        if ( $transaction_result !== strtolower( $raw_sha_signature ) ) {
+            $this->log( 'Resulting Digest (' . $transaction_result . ') and SHASIGN (' . wc_clean( stripslashes( $raw_sha_signature ) ) . ') do not match. Cheatin, uh?', 'warning' );
             return false;
         } else {
             $this->log( 'Received valid response from PostFinance' );
@@ -412,7 +400,7 @@ class WC_Gateway_Postfinance extends WC_Payment_Gateway {
             unset( $input['NCERROR'] );
         }
 
-        $sha_signatur = filter_input( INPUT_GET, 'SHASIGN', FILTER_SANITIZE_STRING, FILTER_FLAG_STRIP_LOW | FILTER_FLAG_STRIP_HIGH );
+        $sha_signature = filter_input( INPUT_GET, 'SHASIGN', FILTER_SANITIZE_STRING, FILTER_FLAG_STRIP_LOW | FILTER_FLAG_STRIP_HIGH );
 
 
         $response = filter_input_array(INPUT_GET, $input);
@@ -426,11 +414,11 @@ class WC_Gateway_Postfinance extends WC_Payment_Gateway {
             return;
         }
 
-        $transaction_result = $this->validate_transaction( $response, $sha_signatur );
+        $transaction_result = $this->validate_transaction( $response, $sha_signature );
 
         if ( $transaction_result ) {
 
-            $this->log( 'PostFinance SHA Signatur: ' .  wc_clean( stripslashes( $sha_signatur ) ) );
+            $this->log( 'PostFinance SHA Signature: ' .  wc_clean( stripslashes( $sha_signature ) ) );
             $this->log( 'PostFinance Transaction Result: ' . wc_print_r( wc_clean( $response ), true ) );
 
             $this->save_postfinance_transaction_data( $order, $response );
