@@ -175,12 +175,12 @@ class WC_Gateway_Postfinance extends WC_Payment_Gateway {
     public function thankyou_page( $order_id ) {
         $order = wc_get_order( $order_id );
 
-        echo '<section class="woocommerce-gateway-posftfinance-details"><h2 class="postfinance-details-heading">' . __( 'PostFinance E-Payment', 'woocommerce-gateway-postfinance' ) . '</h2>';
+        echo '<section class="woocommerce-gateway-posftfinance-details"><h2 class="postfinance-details-heading">' . __( 'PostFinance E-Payment', 'woocommerce-gateway-postfinance' ) . '</h2><ul class="woocommerce-order-overview woocommerce-thankyou-order-details order_details">';
 
         if ( $order->has_status( 'pending' ) ) {
             echo $this->payment_form( $order );
         } else {
-            echo '<ul class="woocommerce-order-overview woocommerce-thankyou-order-details order_details"><li class="woocommerce-order-overview__order">Zahlungs status: <strong>';
+            echo '<li class="woocommerce-order-overview__order">Zahlungs status: <strong>';
             if ( $order->has_status( 'processing' ) ) {
                 echo __( 'Zahlung wurde akzeptiert. Zahlung wird verarbeitet.', 'woocommerce-gateway-postfinance' );
             }
@@ -197,9 +197,9 @@ class WC_Gateway_Postfinance extends WC_Payment_Gateway {
             if ( $order->has_status( 'completed' ) ) {
                 echo __( 'Bestellung wurde bereits verarbeitet.', 'woocommerce-gateway-postfinance' );
             }
-            echo '</strong></li></ul>'; 
+            echo '</strong></li>'; 
         }
-        echo '</section>'; 
+        echo '</ul></section>'; 
     }
 
     /**
@@ -221,15 +221,16 @@ class WC_Gateway_Postfinance extends WC_Payment_Gateway {
 
         $this->log( 'Generating ' . wc_clean( $this->sha_algo ). ' digest for order' . $order->get_order_number() . ': ' . wc_clean( $sha_digest ) );
 
-        $form_html = '<div class="postfinance-overlay"><div class="postfinance-overlay-content"><p>' . __( 'Danke für Ihre Bestellung. Sie werden nun über eine sichere Verbindung zu PostFinance weitergeleitet. ', 'woocommerce-gateway-postfinance' ) . '</p></div></div>';
+        $form_html = '<li><div class="postfinance-overlay"><div class="postfinance-overlay-content"><p>' . __( 'Danke für Ihre Bestellung. Sie werden nun über eine sichere Verbindung zu PostFinance weitergeleitet. ', 'woocommerce-gateway-postfinance' ) . '</p></div></div>';
         $form_html .= '<div class="checkout"><div class="payment_methods methods"><div class="payment_box">';
         $form_html .= '<strong>' . __( 'Bitte klicken Sie den nun bezahlen button um zur PostFinance Webseite zu gelangen.', 'woocommerce-gateway-postfinance' ) . '</strong>';
         $form_html .= '<form method="post" action="'. $this->get_request_url( $this->environment ) . '" id="postfinance-payment-form" name="postfinance-payment-form" target="_self">';
         $form_html .= implode( '', $form_args );
         $form_html .= '<input type="hidden" name="SHASIGN" value="' . $sha_digest .'"/>';
         $form_html .= '<input type="submit" class="button button-default comment-submit" alt="" id="postfinance-payment-button" value="' . __( 'Jetzt bezahlen', 'woocommerce-gateway-postfinance') . '" />';
-        $form_html .= '<a class="button button-default button-cancel cancel" href="' . esc_url( $order->get_cancel_order_url() ) . '">' . __( ' Bestellung abbrechen &amp; Warenkorb wiederherstellen', 'woocommerce-gateway-postfinance' ) . '</a>';
-        $form_html .= '</form></div></div></div>';
+        $form_html .= '</form></li>';
+        $form_html .= '<li><a class="button button-default button-cancel cancel" href="' . esc_url( $order->get_cancel_order_url() ) . '">' . __( ' Bestellung abbrechen &amp; Warenkorb wiederherstellen', 'woocommerce-gateway-postfinance' ) . '</a></li>';
+        $form_html .= '</div></div></div>';
 
         return $form_html;
     }
