@@ -237,16 +237,26 @@ class WC_Gateway_Postfinance extends WC_Payment_Gateway {
 
         $this->log( 'Generating ' . wc_clean( $this->sha_algo ). ' digest for order' . $order->get_order_number() . ': ' . wc_clean( $sha_digest ) );
 
-        /* $form_html = '<li><div class="postfinance-overlay"><div class="postfinance-overlay-content"><p>' . __( 'Danke für Ihre Bestellung. Sie werden nun über eine sichere Verbindung zu PostFinance weitergeleitet. ', 'woocommerce-gateway-postfinance' ) . '</p></div></div>'; */
-        $form_html .= '<li><div class="checkout"><div class="payment_methods methods"><div class="payment_box">';
-        $form_html .= '<strong>' . $this->status_pending . '</strong>';
-        $form_html .= '<form method="post" action="'. $this->get_request_url( $this->environment ) . '" id="postfinance-payment-form" name="postfinance-payment-form" target="_self">';
-        $form_html .= implode( '', $form_args );
-        $form_html .= '<input type="hidden" name="SHASIGN" value="' . $sha_digest .'"/>';
-        $form_html .= '<input type="submit" class="button button-default comment-submit" alt="" id="postfinance-payment-button" value="' . $this->pay_button_text . '" />';
-        $form_html .= '</form></li>';
-        $form_html .= '<li><a class="button button-default button-cancel cancel" href="' . esc_url( $order->get_cancel_order_url() ) . '">' . $this->cancel_button_text . '</a></li>';
-        $form_html .= '</div></div></div>';
+        $form_html = sprintf( '
+            <li>
+                <strong>%s</strong>
+                <form method="post" action="%s" id="postfinance-payment-form" name="postfinance-payment-form" target="_self">
+                    %s
+                    <input type="hidden" name="SHASIGN" value="%s"/>
+                    <input type="submit" class="button button-default comment-submit" alt="" id="postfinance-payment-button" value="%s" />
+                </form>
+            </li>
+            <li>
+                <a class="button button-default button-cancel cancel" href="%s">%s</a>
+            </li>',
+            $this->status_pending,
+            $this->get_request_url( $this->environment ),
+            implode( '', $form_args ),
+            $sha_digest,
+            $this->pay_button_text,
+            esc_url( $order->get_cancel_order_url() ),
+            $this->cancel_button_text
+        );
 
         return $form_html;
     }
