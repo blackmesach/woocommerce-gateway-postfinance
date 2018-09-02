@@ -268,27 +268,144 @@ class WC_Gateway_Postfinance extends WC_Payment_Gateway {
      */
     protected function get_postfinance_args( $order ) {
 
-        $this->log( 'Generating Form parameters ' . $order->get_order_number() );
+        $this->log( 'Generating general parameters PSPID, ORDERID, AMOUNT, CURRENCY and LANGUAGE' );
 
-        return apply_filters( 'woocommerce_postfinance_args', array(
-            'accepturl'     => WC()->api_request_url( 'WC_Gateway_Postfinance' ),
-            'amount'        => $this->get_postfinance_amount( $order->get_total() ),
-            'cancelurl'     => WC()->api_request_url( 'WC_Gateway_Postfinance' ),
-            /* 'amount'        => $this->get_postfinance_amount( $order->get_total() ), */
-            'catalogurl'    => get_site_url(),
-            'cn'            => $order->billing_first_name . ' ' . $order->billing_last_name,
-            'currency'      => get_woocommerce_currency(),
-            'declineurl'    => WC()->api_request_url( 'WC_Gateway_Postfinance' ),
-            'email'         => $order->billing_email,
-            'exceptionurl'  => WC()->api_request_url( 'WC_Gateway_Postfinance' ),
-            'homeurl'       => get_site_url(),
-            'language'      => 'de_DE',
-            'operation'     => 'SAL',
-            'orderid'       => $order->get_id(),
-            'pspid'         => $this->pspid,
+        /**
+         * https://e-payment-postfinance.v-psp.com/en/en/guides/integration%20guides/e-commerce
+         *
+         * 4.2 Form parameters
+         *
+         * Although strictly taken the PSPID, ORDERID, AMOUNT, CURRENCY and LANGUAGE fields are sufficient.
+         */
+        $args = array(
+            'amount'    => $this->get_postfinance_amount( $order->get_total() ),
+            'currency'  => get_woocommerce_currency(),
+            'language'  => 'de_DE',
+            'orderid'   => $order->get_id(),
+            'pspid'     => $this->pspid,
+        );
+
+        /**
+         * https://e-payment-postfinance.v-psp.com/en/en/guides/integration%20guides/e-commerce
+         *
+         * 7.2 Redirection depending on transaction result
+         *
+         * There are four URLs which our system can redirect the customer to after 
+         * a transaction, depending on the result. These are 
+         * "ACCEPTURL", "EXCEPTIONURL", "CANCELURL" and "DECLINEURL".
+         *
+         * 7.3 Redirection with database update
+         *
+         * You can use the redirection on the redirection URLs to trigger automatic 
+         * back-office tasks such as database updates. When a transaction is 
+         * executed, we can send the transaction parameters on your redirection URLs.
+         * To use this functionality, you must activate this option in the 
+         * Transaction feedback tab of your Technical information page,
+         * "HTTP redirection in the browser":
+         * 
+         * “I would like to receive transaction feedback parameters on the redirection URLs”.
+         */
+        $this->log( 'Generating transaction feedback parameters ACCEPTURL, EXCEPTIONURL, CANCELURL and DECLINEURL' );
+        $args = array_merge( $args, array(
+            'accepturl'    => WC()->api_request_url( 'WC_Gateway_Postfinance' ),
+            'cancelurl'    => WC()->api_request_url( 'WC_Gateway_Postfinance' ),
+            'declineurl'   => WC()->api_request_url( 'WC_Gateway_Postfinance' ),
+            'exceptionurl' => WC()->api_request_url( 'WC_Gateway_Postfinance' ),
         ));
-    }
 
+        /**
+         * https://e-payment-postfinance.v-psp.com/en/en/guides/integration%20guides/e-commerce
+         *
+         * 7.1 Default reaction
+         *
+         * In this page, we also add a link to your website and/or to your catalogue. 
+         * Usually, these links are configured in your PostFinance account's 
+         * Administrative details, which is where our system will fetch them. 
+         * However, you can also override these URLs by submitting the 
+         * HOMEURL and CATALOGURL fields
+         */
+        $this->log( 'Generating default reaction parameters HOMEURL and CATALOGURL' );
+        $args = array_merge( $args, array(
+            'catalogurl'   => get_site_url(),
+            'homeurl'   => get_site_url(),
+        ));
+
+        /**
+         * https://e-payment-postfinance.v-psp.com/en/en/guides/integration%20guides/e-commerce
+         *
+         * 9.1.2 How to return from the payment page to the payment method selection screen
+         *
+         * To redirect the customer to a URL on your own website, where he can 
+         * select another payment method, you can use the "BACKURL".
+         */
+        $this->log( 'Generating return parameters BACKURL' );
+        $args = array_merge( $args, array(
+            'backurl'    => WC()->api_request_url( 'WC_Gateway_Postfinance' ),
+        ));
+
+        /**
+         * https://e-payment-postfinance.v-psp.com/en/en/guides/integration%20guides/e-commerce
+         *
+         * 10.1 Operation
+         *
+         * Possible values for new orders:
+         * RES: request for authorization
+         * SAL: request for sale (payment)
+         */
+        $this->log( 'Generating operation code parameters OPERATION' );
+        $args = array_merge( $args, array(
+            'operation' => 'RES',
+        ));
+
+        /**
+         * https://e-payment-postfinance.v-psp.com/en/en/guides/integration%20guides/e-commerce
+         *
+         * 7.7.2 Email to the customer
+         *
+         * You can also choose to send emails to the customer when the transaction 
+         * is confirmed (data capture) and when a transaction is refunded, 
+         * by ticking the corresponding boxes. As the sender ("From") email address 
+         * for these emails, you can configure the 
+         * "Support E-mail address to include in transaction-related e-mails". 
+         */
+        $this->log( 'Generating customer email parameters EMAIL' );
+        $args = array_merge( $args, array(
+            'email' => $order->billing_email,
+        ));
+
+        /**
+         * https://e-payment-postfinance.v-psp.com/en/en/guides/integration%20guides/e-commerce
+         *
+         * 4.2 Form parameters
+         *
+         * Although strictly taken the PSPID, ORDERID, AMOUNT, CURRENCY and 
+         * LANGUAGE fields are sufficient, we nevertheless strongly recommend 
+         * you to also send us the customer name (CN), customer’s e-mail (EMAIL),
+         * address (OWNERADDRESS), town/city (OWNERTOWN), postcode/ZIP (OWNERZIP), 
+         * country (OWNERCTY) and telephone number (OWNERTELNO), as they can 
+         * be useful tools for fraud prevention.
+         */
+        $this->log( 'Generating customer name parameters CN' );
+        $args = array_merge( $args, array(
+            'cn' => $order->billing_first_name . ' ' . $order->billing_last_name,
+        ));
+
+        /**
+         * See the comments earlier, Section 4.2
+         */
+        $this->log( 'Generating customer address parameters OWNERADDRESS, OWNERTOWN, OWNERZIP, OWNERCTY and OWNERTELNO' );
+        $args = array_merge( $args, array(
+            'owneraddress' => $order->billing_address_1 . ' ' . $order->billing_address_2,
+            'ownercty' => $order->billing_country,
+            'ownertelno' => $order->billing_phone,
+            'ownertown' => $order->billing_city,
+            'ownerzip' => $order->billing_postcode,
+        ));
+
+        ksort($args);
+
+        return apply_filters( 'woocommerce_postfinance_args', $args);
+    }
     /**
      * Get the PostFinance request URL.
      * @param  bool $sandbox Check test mode
