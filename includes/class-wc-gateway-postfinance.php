@@ -501,24 +501,42 @@ class WC_Gateway_Postfinance extends WC_Payment_Gateway {
      * @return null
      */
     public function process_response() {
-        $this->log( 'Processing feedback parameters' );
-        if ( empty( filter_input( INPUT_GET, 'orderID', FILTER_VALIDATE_INT ) )
-             || empty( filter_input( INPUT_GET, 'SHASIGN', FILTER_SANITIZE_STRING, FILTER_FLAG_STRIP_LOW | FILTER_FLAG_STRIP_HIGH | FILTER_FLAG_STRIP_BACKTICK ) )
-            ) {
+        $sha_signature = filter_input( INPUT_GET, 'SHASIGN', FILTER_SANITIZE_STRING, FILTER_FLAG_STRIP_LOW | FILTER_FLAG_STRIP_HIGH | FILTER_FLAG_STRIP_BACKTICK );
+        $orderID = filter_input( INPUT_GET, 'orderID', FILTER_VALIDATE_INT );
+
+        if ( empty( $orderID ) || empty( $sha_signature ) ) {
             $this->log( 'orderID or SHASIGN were not found in feedback.', 'error' );
-
-            return;
-
+            $this->stop_execution();
         }
-        // TODO: REFACTOR
-        $order = $this->get_postfinance_order( filter_input( INPUT_GET, 'orderID', FILTER_VALIDATE_INT  ) );
+
+        $order = $this->get_postfinance_order( $orderID );
+
         if ( $order && ! $order->has_status( 'pending' ) ) {
-            $this->log( 'Aborting, Order ' . $order->get_id() . ' is already processed.', 'warning' );
-            $this->log( 'Order status: ' . $order->get_status(), 'warning' );
-
-            return;
+            $this->log( 'Aborting process_response. Order ' . $order->get_id() . ' is already processed. Order status: ' . $order->get_status(), 'warning' );
+            $this->stop_execution();
         }
 
+        $this->log( 'Processing feedback parameters' );
+        $response = filter_input_array(INPUT_GET, $this->filter_feedback() );
+        $transaction_result = $this->validate_transaction( $response, $sha_signature );
+
+        if ( $transaction_result ) {
+            $this->log( 'PostFinance SHA Signature: ' .  wc_clean( stripslashes( $sha_signature ) ) );
+            $this->log( 'PostFinance Transaction Result: ' . wc_print_r( wc_clean( $response ), true ) );
+
+            $this->save_postfinance_transaction_data( $order, $response );
+            $this->process_payment_status( $order, $response );
+
+            wp_redirect($order->get_checkout_order_received_url());
+            exit;
+        } 
+    }
+
+    /**
+     * Filter post-payment feedback send from PostFinance
+     * @return array  $feedback
+     */
+    public function filter_feedback() {
         /**
          * https://e-payment-postfinance.v-psp.com/en/en/guides/integration%20guides/e-commerce
          *
@@ -599,32 +617,34 @@ class WC_Gateway_Postfinance extends WC_Payment_Gateway {
             } else  {
                 $accepted_parameters[] =  strtoupper( $key );
             }
-
         }
+
         $this->log( 'Generating the SHA string based on the accepted parameters ' . implode(', ', $accepted_parameters ) );
         $this->log( 'Removing empty or missing parameters ' . implode(', ', $removed_parameters ) . ' from SHA string' );
 
-        $sha_signature = filter_input( INPUT_GET, 'SHASIGN', FILTER_SANITIZE_STRING, FILTER_FLAG_STRIP_LOW | FILTER_FLAG_STRIP_HIGH | FILTER_FLAG_STRIP_BACKTICK );
-
-        $response = filter_input_array(INPUT_GET, $feedback);
-
-        $transaction_result = $this->validate_transaction( $response, $sha_signature );
-
-        if ( $transaction_result ) {
-            $this->log( 'PostFinance SHA Signature: ' .  wc_clean( stripslashes( $sha_signature ) ) );
-            $this->log( 'PostFinance Transaction Result: ' . wc_print_r( wc_clean( $response ), true ) );
-
-            $this->save_postfinance_transaction_data( $order, $response );
-            $this->process_payment_status( $order, $response );
-
-            wp_redirect($order->get_checkout_order_received_url());
-            exit;
-        } 
-
-        $this->log( 'Received invalid response.', 'warning' );
-        wp_die( 'PostFinance Request Failure', 'PostFinance Transaction', array( 'response' => 500 ) );
+        return $feedback;
     }
 
+    /**
+     * The execution should not continue any further.
+     */
+    public function stop_execution() {
+
+        $this->log( 'Received invalid response. The execution does not continue any further.', 'warning' );
+
+        $message = sprintf( '
+            <h1>%s</h1>
+            <p>%s</p>
+            <a href="%s" class="button button-large" id="postfinance-payment-button" href=""/>%s</a>',
+            $this->title,
+            $this->description,
+            wc_get_page_permalink( 'myaccount' ),
+            $this->order_button_text
+        );
+
+        wp_die( $message, 200 );
+        exit;
+    }
 
     /**
      * Save important data from the PostFinance response to the order.
