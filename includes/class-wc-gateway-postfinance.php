@@ -228,6 +228,7 @@ class WC_Gateway_Postfinance extends WC_Payment_Gateway {
         $this->log( 'Generating Payment Form for order' . $order->get_order_number() . ': ' . wc_print_r( wc_clean( $args ), true ) );
 
         $form_args = array();
+        $sha_string =  "";
         foreach ( $args as $key => $value ) {
             $form_args[] = '<input type="hidden" name="' . esc_attr( strtoupper( $key ) ) . '" value="'. esc_attr ( $value ) .'"/>';
             $sha_string .= esc_attr ( strtoupper( $key ) ) . '=' . esc_attr ( $value ) . $this->sha_in_signature;
@@ -414,9 +415,8 @@ class WC_Gateway_Postfinance extends WC_Payment_Gateway {
     public function get_request_url( $sandbox = false ) {
         if ( $sandbox ) {
             return 'https://e-payment.postfinance.ch/ncol/test/orderstandard_utf8.asp';
-        } else {
-            return 'https://e-payment.postfinance.ch/ncol/prod/orderstandard_utf8.asp';
-        }
+        } 
+        return 'https://e-payment.postfinance.ch/ncol/prod/orderstandard_utf8.asp';
     }
 
     /**
@@ -463,20 +463,23 @@ class WC_Gateway_Postfinance extends WC_Payment_Gateway {
         if ( ! is_array( $response ) || empty( $raw_sha_signature ) ) {
             return false;
         }
-
+        
+        $string = "";
         foreach ( $response as $key => $value ) {
             $string .= strtoupper( $key ) . '=' . $value . $this->sha_out_signature;
         }
 
-        $transaction_result = hash( 'sha1', $string );
+        ksort($string);
+
+        $transaction_result = $this->return_digest( $this->sha_algo, $string );
+        $this->log( 'Generating ' . wc_clean( $this->sha_algo ). ' digest: ' . wc_clean( strtoupper( $transaction_result ) ) );
 
         if ( $transaction_result !== strtolower( $raw_sha_signature ) ) {
-            $this->log( 'Resulting Digest (' . $transaction_result . ') and SHASIGN (' . wc_clean( stripslashes( $raw_sha_signature ) ) . ') do not match. Cheatin, uh?', 'warning' );
+            $this->log( 'Resulting digest (' . $transaction_result . ') and SHASIGN (' . wc_clean( stripslashes( $raw_sha_signature ) ) . ') do not match. Cheatin, uh?', 'warning' );
             return false;
-        } else {
-            $this->log( 'Received valid response from PostFinance' );
-            return true;
-        }
+        } 
+        $this->log( 'Received valid response from PostFinance' );
+        return true;
     }
 
     /**
@@ -488,7 +491,6 @@ class WC_Gateway_Postfinance extends WC_Payment_Gateway {
         $order_id = (int) $raw_orderID;
         $order    = wc_get_order( $order_id );
 
-        /* if ( ! $order || $order->get_order_id() !== $order_id ) { */
         if ( ! $order ) {
             $this->log( 'Order ID (' . $order_id . ') not found.', 'error' );
             return false;
@@ -501,73 +503,16 @@ class WC_Gateway_Postfinance extends WC_Payment_Gateway {
      * @return null
      */
     public function process_response() {
+        $this->log( 'Processing feedback parameters' );
         if ( empty( filter_input( INPUT_GET, 'orderID', FILTER_VALIDATE_INT ) )
-             || empty( filter_input( INPUT_GET, 'SHASIGN', FILTER_SANITIZE_STRING, FILTER_FLAG_STRIP_LOW | FILTER_FLAG_STRIP_HIGH ) )
-             /* || empty( filter_input( INPUT_GET, 'PAYID', FILTER_VALIDATE_INT ) ) */ 
-             /* || empty( filter_input( INPUT_GET, 'STATUS', FILTER_VALIDATE_INT ) ) */ 
+             || empty( filter_input( INPUT_GET, 'SHASIGN', FILTER_SANITIZE_STRING, FILTER_FLAG_STRIP_LOW | FILTER_FLAG_STRIP_HIGH | FILTER_FLAG_STRIP_BACKTICK ) )
             ) {
-            $this->log( 'Order ID or SHASIGN were not found in respone.', 'error' );
+            $this->log( 'orderID or SHASIGN were not found in feedback.', 'error' );
 
             return;
+
         }
-
-        /*
-         * Watch out!
-         * ==========
-         * 
-         * PostFinance Implementation
-         * --------------------------
-         * 
-         * Quote from 'Integrate with PostFinance e-Commerce'
-         *     In order to verify the integrity of the submitted data, our system requires 
-         *     each request to include a SHA signature. This signature is built by hashing 
-         *     the contents of the request, in the 'parameter=value' format in **alphabetical** order.
-         *
-         * Example:
-         *     ACCEPTANCE: 1234
-         *     NCERROR: 0
-         *     orderID: 12
-         *     PAYID: 32100123
-         *     STATUS: 9
-         *     SHA-OUT Passphrase: Mysecretsig1875!?
-         * 
-         *     ACCEPTANCE=1234Mysecretsig1875!?NCERROR=0Mysecretsig1875!?ORDERID=12Mysecretsig1875!?PAYID=32100123Mysecretsig1875!?STATUS=9Mysecretsig1875!?
-         *
-         * Important! Remove empty paramter such as ACCEPTANCE, NCERROR or otherwise the SHA Digest and SHASIGN do not match!
-         */
-        $input = array(
-            'ACCEPTANCE'    => array( 'filter'    => FILTER_SANITIZE_STRING, 
-                                      'flags'     => FILTER_FLAG_STRIP_LOW | FILTER_FLAG_STRIP_HIGH ),
-            'amount'        => array( 'filter'    => FILTER_SANITIZE_STRING, 
-                                      'flags'     => FILTER_FLAG_STRIP_LOW | FILTER_FLAG_STRIP_HIGH ),
-            'IP'            => FILTER_VALIDATE_IP,
-            'NCERROR'       => array( 'filter'    => FILTER_SANITIZE_STRING, 
-                                      'flags'     => FILTER_FLAG_STRIP_LOW | FILTER_FLAG_STRIP_HIGH ),
-            /* 'NCERROR'       => FILTER_SANITIZE_NUMBER_INT, */
-            /* 'NCERRORPLUS'   => FILTER_SANITIZE_NUMBER_INT, */
-            /* 'NCSTATUS'      => FILTER_SANITIZE_NUMBER_INT, */
-            'orderID'       => FILTER_SANITIZE_NUMBER_INT,
-            'PAYID'         => FILTER_SANITIZE_NUMBER_INT,
-            'STATUS'        => FILTER_SANITIZE_NUMBER_INT,
-            'TRXDATE'       => array( 'filter'    => FILTER_SANITIZE_STRING, 
-                                      'flags'     => FILTER_FLAG_STRIP_LOW | FILTER_FLAG_STRIP_HIGH ),
-
-        );
-
-        // IMPORTANT: If ACCEPTANCE or NCERROR is empty, remove the parameter from the signature string
-        if ( empty( $_GET['ACCEPTANCE'] ) ) {
-            unset( $input['ACCEPTANCE'] );
-        }
-        if ( $_GET['NCERROR'] == '' ) {
-            unset( $input['NCERROR'] );
-        }
-
-        $sha_signature = filter_input( INPUT_GET, 'SHASIGN', FILTER_SANITIZE_STRING, FILTER_FLAG_STRIP_LOW | FILTER_FLAG_STRIP_HIGH );
-
-
-        $response = filter_input_array(INPUT_GET, $input);
-
-        // Hier wäre eine andere Lösung gut damit es gleich zum wp_die springt und nicht -1 ausgibt!
+        // TODO: REFACTOR
         $order = $this->get_postfinance_order( $response['orderID'] );
         if ( $order && ! $order->has_status( 'pending' ) ) {
             $this->log( 'Aborting, Order ' . $order->get_id() . ' is already processed.', 'warning' );
@@ -575,6 +520,95 @@ class WC_Gateway_Postfinance extends WC_Payment_Gateway {
 
             return;
         }
+
+        /**
+         * https://e-payment-postfinance.v-psp.com/en/en/guides/integration%20guides/e-commerce
+         *
+         * 7.5 Feedback parameters
+         *
+         * When a transaction is executed, we can send the following parameter 
+         * list to your redirection URLs and/or post-payment feedback URLs.
+         *
+         * ACCEPTANCE   Acceptance code returned by the acquirer
+         * AMOUNT       Order amount (not multiplied by 100)
+         * BRAND        Card brand (our system derives this from the card number)
+         * CARDNO       Masked card number
+         * CN           Cardholder/customer name
+         * CURRENCY     Order cposturrency
+         * ED           Expiry date
+         * NCERROR      Error code
+         * ORDERID      Your order reference
+         * PAYID        Payment reference in our system
+         * PM           Payment method
+         * SHASIGN      SHA signature calculated by our system (if SHA-OUT configured)
+         * STATUS       Transaction status (see Status overview)
+         * TRXDATE      Transaction date
+         *
+         * In order to verify the integrity of the submitted data, our system 
+         * requires each request to include a SHA signature. This signature is 
+         * built by hashing the contents of the request, in the 'parameter=value' 
+         * format in alphabetical order.
+         *
+         * Example:
+         *     ACCEPTANCE: 1234
+         *     NCERROR: 0
+         *     orderID: 12
+         *     PAYID: 32100123
+         *     STATUS: 9
+         *
+         * SHA-OUT Passphrase: Mysecretsig1875
+         * 
+         *     ACCEPTANCE=1234Mysecretsig1875NCERROR=0Mysecretsig1875ORDERID=12Mysecretsig1875PAYID=32100123Mysecretsig1875STATUS=9Mysecretsig1875
+         *
+         * Important! Remove empty paramter such as ACCEPTANCE, NCERROR, ED, CARNO or otherwise the SHA Digest and SHASIGN do not match!
+         */
+        $feedback = array(
+            'ACCEPTANCE'    => array( 'filter'    => FILTER_SANITIZE_STRING, 
+                                      'flags'     => FILTER_FLAG_STRIP_LOW | FILTER_FLAG_STRIP_HIGH | FILTER_FLAG_STRIP_BACKTICK ),
+            'amount'        => array( 'filter'    => FILTER_SANITIZE_STRING, 
+                                      'flags'     => FILTER_FLAG_STRIP_LOW | FILTER_FLAG_STRIP_HIGH | FILTER_FLAG_STRIP_BACKTICK ),
+            'BRAND'         => array( 'filter'    => FILTER_SANITIZE_STRING, 
+                                      'flags'     => FILTER_FLAG_STRIP_LOW | FILTER_FLAG_STRIP_BACKTICK ),
+            'CARDNO'        => array( 'filter'    => FILTER_SANITIZE_STRING, 
+                                      'flags'     => FILTER_FLAG_STRIP_LOW | FILTER_FLAG_STRIP_HIGH | FILTER_FLAG_STRIP_BACKTICK ),
+            'CN'            => array( 'filter'    => FILTER_SANITIZE_STRING, 
+                                      'flags'     => FILTER_FLAG_STRIP_LOW | FILTER_FLAG_STRIP_BACKTICK ),
+            'currency'      => array( 'filter'    => FILTER_SANITIZE_STRING, 
+                                      'flags'     => FILTER_FLAG_STRIP_LOW | FILTER_FLAG_STRIP_HIGH | FILTER_FLAG_STRIP_BACKTICK ),
+            'ED'            => array( 'filter'    => FILTER_SANITIZE_STRING, 
+                                      'flags'     => FILTER_FLAG_STRIP_LOW | FILTER_FLAG_STRIP_HIGH | FILTER_FLAG_STRIP_BACKTICK ),
+            'IP'            => FILTER_VALIDATE_IP,
+            'NCERROR'       => array( 'filter'    => FILTER_SANITIZE_STRING, 
+                                      'flags'     => FILTER_FLAG_STRIP_LOW | FILTER_FLAG_STRIP_HIGH | FILTER_FLAG_STRIP_BACKTICK ),
+            /* 'NCERRORPLUS'   => FILTER_SANITIZE_NUMBER_INT, */
+            /* 'NCSTATUS'      => FILTER_SANITIZE_NUMBER_INT, */
+            'orderID'       => FILTER_SANITIZE_NUMBER_INT,
+            'PAYID'         => FILTER_SANITIZE_NUMBER_INT,
+            'PM'            => array( 'filter'    => FILTER_SANITIZE_STRING, 
+                                      'flags'     => FILTER_FLAG_STRIP_LOW | FILTER_FLAG_STRIP_BACKTICK ),
+            'STATUS'        => FILTER_SANITIZE_NUMBER_INT,
+            'TRXDATE'       => array( 'filter'    => FILTER_SANITIZE_STRING, 
+                                      'flags'     => FILTER_FLAG_STRIP_LOW | FILTER_FLAG_STRIP_HIGH | FILTER_FLAG_STRIP_BACKTICK ),
+        );
+
+        // If empty or missing remove external variable from input array
+        $accepted_parameters = array();
+        $removed_parameters = array();
+        foreach( array_keys($feedback) as $key ) {
+            if ( ! isset( $_GET[$key] ) || $_GET[$key] == '' ) {
+                $removed_parameters[] =  strtoupper( $key );
+                unset( $feedback[$key] );
+            } else  {
+                $accepted_parameters[] =  strtoupper( $key );
+            }
+
+        }
+        $this->log( 'Generating the SHA string based on the accepted parameters ' . implode(', ', $accepted_parameters ) );
+        $this->log( 'Removing empty or missing parameters ' . implode(', ', $removed_parameters ) . ' from SHA string' );
+
+        $sha_signature = filter_input( INPUT_GET, 'SHASIGN', FILTER_SANITIZE_STRING, FILTER_FLAG_STRIP_LOW | FILTER_FLAG_STRIP_HIGH | FILTER_FLAG_STRIP_BACKTICK );
+
+        $response = filter_input_array(INPUT_GET, $feedback);
 
         $transaction_result = $this->validate_transaction( $response, $sha_signature );
 
@@ -629,6 +663,9 @@ class WC_Gateway_Postfinance extends WC_Payment_Gateway {
         }
         if ( ! empty( $response['amount'] ) ) {
             update_post_meta( $order->get_id(), 'PostFinance Amount', wc_clean( $response['amount'] ) );
+        }
+        if ( ! empty( $response['currency'] ) ) {
+            update_post_meta( $order->get_id(), 'PostFinance Currency', wc_clean( $response['currency'] ) );
         }
         if ( ! empty( $response['IP'] ) ) {
             update_post_meta( $order->get_id(), 'PostFinance IP', wc_clean( $response['IP'] ) );
