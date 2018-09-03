@@ -469,8 +469,6 @@ class WC_Gateway_Postfinance extends WC_Payment_Gateway {
             $string .= strtoupper( $key ) . '=' . $value . $this->sha_out_signature;
         }
 
-        ksort($string);
-
         $transaction_result = $this->return_digest( $this->sha_algo, $string );
         $this->log( 'Generating ' . wc_clean( $this->sha_algo ). ' digest: ' . wc_clean( strtoupper( $transaction_result ) ) );
 
@@ -513,7 +511,7 @@ class WC_Gateway_Postfinance extends WC_Payment_Gateway {
 
         }
         // TODO: REFACTOR
-        $order = $this->get_postfinance_order( $response['orderID'] );
+        $order = $this->get_postfinance_order( filter_input( INPUT_GET, 'orderID', FILTER_VALIDATE_INT  ) );
         if ( $order && ! $order->has_status( 'pending' ) ) {
             $this->log( 'Aborting, Order ' . $order->get_id() . ' is already processed.', 'warning' );
             $this->log( 'Order status: ' . $order->get_status(), 'warning' );
@@ -656,39 +654,9 @@ class WC_Gateway_Postfinance extends WC_Payment_Gateway {
      * @param array $response
      */
     protected function save_postfinance_transaction_data( $order, $response ) {
-        if ( ! empty( $response['ACCEPTANCE'] ) ) {
-            update_post_meta( $order->get_id(), 'PostFinance Acceptance', wc_clean( $response['ACCEPTANCE'] ) );
-        } else {
-            update_post_meta( $order->get_id(), 'PostFinance Acceptance', 'Empty' );
-        }
-        if ( ! empty( $response['amount'] ) ) {
-            update_post_meta( $order->get_id(), 'PostFinance Amount', wc_clean( $response['amount'] ) );
-        }
-        if ( ! empty( $response['currency'] ) ) {
-            update_post_meta( $order->get_id(), 'PostFinance Currency', wc_clean( $response['currency'] ) );
-        }
-        if ( ! empty( $response['IP'] ) ) {
-            update_post_meta( $order->get_id(), 'PostFinance IP', wc_clean( $response['IP'] ) );
-        }
-        if ( ! empty( $response['NCERROR'] ) ) {
-            update_post_meta( $order->get_id(), 'PostFinance NC Error', wc_clean( $response['NCERROR'] ) );
-        } else {
-            update_post_meta( $order->get_id(), 'PostFinance NC Error', 'Empty' );
-        }
-        /* if ( ! empty( $response['NCERRORPLUS'] ) ) { */
-        /*     update_post_meta( $order->get_id(), 'PostFinance NC Error Plus', wc_clean( $response['NCERRORPLUS'] ) ); */
-        /* } */
-        /* if ( ! empty( $response['NCSTATUS'] ) ) { */
-        /*     update_post_meta( $order->get_id(), 'PostFinance NC Status', wc_clean( $response['NCSTATUS'] ) ); */
-        /* } */
-        if ( ! empty( $response['PAYID'] ) ) {
-            update_post_meta( $order->get_id(), 'PostFinance PayID', wc_clean( $response['PAYID'] ) );
-        }
-        if ( ! empty( $response['STATUS'] ) ) {
-            update_post_meta( $order->get_id(), 'PostFinance Status', wc_clean( $response['STATUS'] ) );
-        }
-        if ( ! empty( $response['TRXDATE'] ) ) {
-            update_post_meta( $order->get_id(), 'PostFinance transaction date', wc_clean( $response['TRXDATE'] ) );
+        $orderID = $order->get_id();
+        foreach( $response as $key => $value ) {
+            update_post_meta( $orderID, 'PostFinance ' . strtoupper( $key ), wc_clean( $value ) );
         }
     }
 
