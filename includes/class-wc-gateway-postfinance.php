@@ -611,35 +611,12 @@ class WC_Gateway_Postfinance extends WC_Payment_Gateway {
         $transaction_result = $this->validate_transaction( $response, $sha_signature );
 
         if ( $transaction_result ) {
-
             $this->log( 'PostFinance SHA Signature: ' .  wc_clean( stripslashes( $sha_signature ) ) );
             $this->log( 'PostFinance Transaction Result: ' . wc_print_r( wc_clean( $response ), true ) );
 
             $this->save_postfinance_transaction_data( $order, $response );
+            $this->process_payment_status( $order, $response );
 
-            $status_requested = array(9, 91, 92);
-            $status_authorised = array(5, 50, 51, 52, 55, 95);
-            $status_stored = array(4, 40, 41, 46, 99);
-            $status_incomplete = array(0, 1, 2, 3, 93);
-            /* $status_anything_else = array(56, 57, 59, 6, 61, 62, 63, 64, 7, 71, 72, 73, 74, 75, 8, 81, 82, 83, 84, 85, 94, 96, 99); */
-
-            if ( in_array( $response['STATUS'], $status_requested ) ) {
-                $this->log( 'PostFinance payment completed' );
-                $this->payment_complete( $order, wc_clean( $response['PAYID'] ), __( 'PostFinance payment captured. Change payment status to processing or complete.', 'woocommerce-gateway-postfinance' ) );
-            } elseif ( in_array( $response['STATUS'], $status_authorised ) ) {
-                $this->log( 'PostFinance payment authorized' );
-                $this->payment_on_hold( $order, wc_clean( $response['PAYID'] ), __( 'PostFinance payment pending. Change payment status to processing or complete.', 'woocommerce-gateway-postfinance' ) );
-            } elseif ( in_array( $response['STATUS'], $status_stored ) ) {
-                $this->log( 'PostFinance payment stored. The status is uncertain. Login to find out the actual result.', 'warning' );
-                $this->payment_on_hold( $order, wc_clean( $response['PAYID'] ), __( 'Stored waiting external result. Login via the PostFinance website to find out the actual result.', 'woocommerce-gateway-postfinance' ) );
-            } elseif ( in_array( $response['STATUS'], $status_incomplete ) ) {
-                $this->log( 'PostFinance transaction is declined. It could be only a temporary technical problem. Login to find out the actual result.', 'warning' );
-                $this->payment_on_failed( $order, wc_clean( $response['PAYID'] ), __( 'Refused or incomplete. The NCERROR and ACCEPTANCE fields give an explanation of the error.', 'woocommerce-gateway-postfinance' ) );
-            // Hier müsste noch ein Canceled by Customer kommen. Dafär müchte die 1 aus status_incomplete raus. Dafür eine Abfrage hier rein. Damit klar ist das der Kunde abgebrochen hat.
-            } else {
-                $this->log( 'Payment failed! PostFinance response["status"] do not match.', 'warning' );
-                $this->payment_on_failed( $order, wc_clean( $response['PAYID'] ), __( 'Validation error. Postfinance status response do not match. Payment failed!', 'woocommerce-gateway-postfinance' ) );
-            }
             wp_redirect($order->get_checkout_order_received_url());
             exit;
         } 
@@ -647,6 +624,7 @@ class WC_Gateway_Postfinance extends WC_Payment_Gateway {
         $this->log( 'Received invalid response.', 'warning' );
         wp_die( 'PostFinance Request Failure', 'PostFinance Transaction', array( 'response' => 500 ) );
     }
+
 
     /**
      * Save important data from the PostFinance response to the order.
@@ -657,6 +635,81 @@ class WC_Gateway_Postfinance extends WC_Payment_Gateway {
         $orderID = $order->get_id();
         foreach( $response as $key => $value ) {
             update_post_meta( $orderID, 'PostFinance ' . strtoupper( $key ), wc_clean( $value ) );
+        }
+    }
+
+    /**
+     * Process status data from the PostFinance response.
+     * @param WC_Order $order
+     * @param array $response
+     */
+    public function process_payment_status( $order, $response ) {
+
+        $status_requested = array(9, 91, 92);
+        $status_authorised = array(5, 50, 51, 52, 55, 95);
+        $status_stored = array(4, 40, 41, 46, 99);
+        /* $status_incomplete = array(0, 1, 2, 3, 93); */
+        $status_incomplete = array(0, 2, 3, 93);
+        /* $status_anything_else = array(56, 57, 59, 6, 61, 62, 63, 64, 7, 71, 72, 73, 74, 75, 8, 81, 82, 83, 84, 85, 94, 96, 99); */
+
+        // status payment completed
+        if ( in_array( $response['STATUS'], $status_requested ) ) {
+            $this->log( 'PostFinance payment completed' );
+            $this->payment_complete( 
+                $order, 
+                wc_clean( $response['PAYID'] ), 
+                __( 'PostFinance payment captured. Change payment status to processing or complete.', 'woocommerce-gateway-postfinance' )
+            );
+        } 
+        
+        // status payment authorized.
+        else if ( in_array( $response['STATUS'], $status_authorised ) ) {
+            $this->log( 'PostFinance payment authorized' );
+            $this->payment_on_hold( 
+                $order, 
+                wc_clean( $response['PAYID'] ), 
+                __( 'PostFinance payment authorized. Change payment status to processing or complete.', 'woocommerce-gateway-postfinance' ) 
+            );
+        } 
+        
+        // payment stored but status is uncertain.
+        else if ( in_array( $response['STATUS'], $status_stored ) ) {
+            $this->log( 'PostFinance payment stored. The status is uncertain. Login to find out the actual result.', 'warning' );
+            $this->payment_on_hold( 
+                $order, 
+                wc_clean( $response['PAYID'] ), 
+                __( 'Stored waiting external result. Login via the PostFinance website to find out the actual result.', 'woocommerce-gateway-postfinance' ) 
+            );
+        } 
+        
+        // status transaction declined.
+        else if ( in_array( $response['STATUS'], $status_incomplete ) ) {
+            $this->log( 'PostFinance transaction is declined. It could be only a temporary technical problem. Login to find out the actual result.', 'warning' );
+            $this->payment_on_failed( 
+                $order, 
+                wc_clean( $response['PAYID'] ), 
+                __( 'Refused or incomplete. The NCERROR and ACCEPTANCE fields give an explanation of the error.', 'woocommerce-gateway-postfinance' )
+            );
+        } 
+        
+        // status transaction cancelled.
+        else if ( '1' === $response['STATUS'] ) {
+            $this->log( 'PostFinance transaction is cancelled. The customer has cancelled the transaction by himself.', 'warning' );
+            $this->payment_on_failed( 
+                $order, 
+                wc_clean( $response['PAYID'] ), 
+                __( 'Cancelled by the customer/buyer. The customer has cancelled the transaction by himself.', 'woocommerce-gateway-postfinance' )
+            );
+        } 
+        
+        // status do not match.
+        else {
+            $this->log( 'Payment failed! PostFinance response["status"] do not match.', 'warning' );
+            $this->payment_on_failed( 
+                $order, 
+                wc_clean( $response['PAYID'] ), 
+                __( 'Validation error. Postfinance status response do not match. Payment failed!', 'woocommerce-gateway-postfinance' )
+            );
         }
     }
 
