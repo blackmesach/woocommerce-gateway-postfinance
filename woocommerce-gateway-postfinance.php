@@ -1,13 +1,17 @@
 <?php
 /*
  * Plugin Name: WooCommerce PostFinance Gateway
- * Plugin URI: 
- * Description: Take PostFinance payments in WooComerce.
+ * Plugin URI: https://github.com/blackmesach/woocommerce-gateway-postfinance
+ * Description: Take PostFinance Card payments on your store using PostFinance E-finance.
  * Author: blackmesa.ch
  * Author URI: https://blackmesa.ch
- * Version: 1.0.0
+ * Version: 1.1.0
+ * Requires at least: 4.9
+ * Tested up to: 4.9.8
+ * Requires PHP: 7.2
+ * License: GPLv3
+ * License URI: https://www.gnu.org/licenses/gpl-3.0.html
  * Text Domain: woocommerce-gateway-postfinance
- * Domain Path: /languages
  *
  *
  * This program is free software: you can redistribute it and/or modify
@@ -22,7 +26,7 @@
  *
  * You should have received a copy of the GNU General Public License
  * along with this program. If not, see <http://www.gnu.org/licenses/>.
-*/
+ */
 
 if ( ! defined( 'ABSPATH' ) ) {
     exit;
@@ -31,9 +35,9 @@ if ( ! defined( 'ABSPATH' ) ) {
 /**
  * Required minimums and constants
  */
-define( 'WC_POSTFINANCE_VERSION', '1.0.0' );
-define( 'WC_POSTFINANCE_MIN_PHP_VER', '5.6.0' );
-define( 'WC_POSTFINANCE_MIN_WC_VER', '3.0.7' );
+define( 'WC_POSTFINANCE_VERSION', '1.1.0' );
+define( 'WC_POSTFINANCE_MIN_PHP_VER', '7,2' );
+define( 'WC_POSTFINANCE_MIN_WC_VER', '3.4.5' );
 define( 'WC_POSTFINANCE_MAIN_FILE', __FILE__ );
 define( 'WC_POSTFINANCE_PLUGIN_URL', untrailingslashit( plugins_url( basename( plugin_dir_path( __FILE__ ) ), basename( __FILE__ ) ) ) );
 define( 'WC_POSTFINANCE_PLUGIN_PATH', untrailingslashit( plugin_dir_path( __FILE__ ) ) );
