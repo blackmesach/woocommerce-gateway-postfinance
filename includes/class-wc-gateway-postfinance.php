@@ -246,7 +246,7 @@ class WC_Gateway_Postfinance extends WC_Payment_Gateway {
                     <p>%s</p>
                 </div>
             </div>',
-            $this->redirection_overlay,
+            $this->redirection_overlay
         );
 
         // "HTML form" that contains hidden fields with the payment data.
