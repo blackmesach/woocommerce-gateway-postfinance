@@ -79,6 +79,7 @@ class WC_Gateway_Postfinance extends WC_Payment_Gateway {
         $this->title                = $this->get_option( 'title' );
         $this->description          = $this->get_option( 'description' );
         $this->order_button_text    = $this->get_option( 'order_button' );
+        $this->redirection_overlay  = $this->get_option( 'redirection_overlay' );
         $this->status_pending       = $this->get_option( 'status_pending' );
         $this->pay_button_text      = $this->get_option( 'pay_button' );
         $this->cancel_button_text   = $this->get_option( 'cancel_button' );
@@ -238,7 +239,18 @@ class WC_Gateway_Postfinance extends WC_Payment_Gateway {
 
         $this->log( 'Generating ' . wc_clean( $this->sha_algo ). ' digest for order' . $order->get_order_number() . ': ' . wc_clean( $sha_digest ) );
 
+        // CSS overlay and a js submission action that automatically directs the customer to a payment page on PostFinance e-Commerce.
         $form_html = sprintf( '
+            <div class="postfinance-overlay">
+                <div class="postfinance-overlay-content">
+                    <p>%s</p>
+                </div>
+            </div>',
+            $this->redirection_overlay,
+        );
+
+        // "HTML form" that contains hidden fields with the payment data.
+        $form_html .= sprintf( '
             <li>
                 <strong>%s</strong>
                 <form method="post" action="%s" id="postfinance-payment-form" name="postfinance-payment-form" target="_self">
